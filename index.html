@@ -150,6 +150,33 @@
   /* Error box */
   .err-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px;font-size:12px;color:#fca5a5;margin-top:10px;display:none;line-height:1.6;}
 
+  /* ── CROP MODAL ── */
+  #cropModal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:600;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;}
+  #cropModal.open{display:flex;}
+  #cropWrap{position:relative;max-width:100%;max-height:65vh;user-select:none;touch-action:none;}
+  #cropImg{display:block;max-width:100%;max-height:65vh;object-fit:contain;border-radius:6px;}
+  #cropBox{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(0,0,0,.55);cursor:move;touch-action:none;}
+  #cropBox::before,#cropBox::after{content:'';position:absolute;background:var(--accent);}
+  .crop-handle{position:absolute;width:18px;height:18px;background:var(--accent);border-radius:3px;z-index:2;}
+  .ch-tl{top:-9px;left:-9px;cursor:nw-resize;}
+  .ch-tr{top:-9px;right:-9px;cursor:ne-resize;}
+  .ch-bl{bottom:-9px;left:-9px;cursor:sw-resize;}
+  .ch-br{bottom:-9px;right:-9px;cursor:se-resize;}
+  .crop-actions{display:flex;gap:10px;margin-top:14px;}
+  #cropHint{font-size:12px;color:var(--sub2);margin-top:8px;text-align:center;}
+
+  /* ── AUTOCOMPLETE ── */
+  .ac-wrap{position:relative;flex:1;}
+  .ac-wrap input{width:100%;}
+  .ac-drop{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--accent);border-top:none;border-radius:0 0 8px 8px;z-index:300;max-height:220px;overflow-y:auto;display:none;}
+  .ac-drop.open{display:block;}
+  .ac-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;}
+  .ac-item:last-child{border-bottom:none;}
+  .ac-item:hover,.ac-item.sel{background:var(--surf);}
+  .ac-item .ac-name{font-size:13px;font-weight:700;color:var(--text);}
+  .ac-item .ac-sub{font-size:10px;color:var(--sub2);margin-top:2px;font-family:monospace;}
+  .ac-item .ac-match{color:var(--accent);}
+
   @media(min-width:480px){
     .sg{grid-template-columns:repeat(4,1fr);}
     .stgrid{grid-template-columns:repeat(3,1fr);}
@@ -227,6 +254,26 @@
   <div id="dashContent"><div class="empty">Connect to Google Sheets first.</div></div>
 </div>
 
+<!-- CROP MODAL -->
+<div id="cropModal">
+  <div style="font-size:13px;font-weight:700;color:var(--sub2);margin-bottom:10px;">✂️ Drag to select EPIC area, then crop</div>
+  <div id="cropWrap">
+    <img id="cropImg" draggable="false" />
+    <div id="cropBox">
+      <div class="crop-handle ch-tl" data-h="tl"></div>
+      <div class="crop-handle ch-tr" data-h="tr"></div>
+      <div class="crop-handle ch-bl" data-h="bl"></div>
+      <div class="crop-handle ch-br" data-h="br"></div>
+    </div>
+  </div>
+  <div id="cropHint">Drag the box over the EPIC number · Handles to resize</div>
+  <div class="crop-actions">
+    <button class="btn btn-g" onclick="confirmCrop()">✂️ Crop & Scan</button>
+    <button class="btn btn-o" onclick="skipCrop()">⏭ Scan Full Image</button>
+    <button class="btn btn-o" onclick="closeCropModal()">✖ Cancel</button>
+  </div>
+</div>
+
 <!-- SCANNER -->
 <div class="page" id="page-scanner">
   <div class="scan-card">
@@ -243,19 +290,35 @@
     <div class="scan-acts">
       <button class="btn btn-p btn-sm" id="camBtn" onclick="startCamera()">📷 Camera</button>
       <button class="btn btn-o btn-sm" onclick="document.getElementById('imgUp').click()">🖼 Upload Photo</button>
-      <button class="btn btn-g btn-sm" id="capBtn" style="display:none" onclick="captureAndScan()">📸 Capture & Scan</button>
+      <button class="btn btn-g btn-sm" id="capBtn" style="display:none" onclick="captureFrame()">📸 Capture</button>
       <button class="btn btn-o btn-sm" id="stopBtn" style="display:none" onclick="stopCamera()">✖ Stop</button>
     </div>
     <input type="file" id="imgUp" accept="image/*" capture="environment" style="display:none" onchange="handleUpload(event)">
   </div>
   <div class="ocr-log" id="ocrLog"></div>
 
-  <div class="slbl">Manual EPIC Entry</div>
+  <div class="slbl">Search by EPIC Number</div>
+  <div class="man-row" style="margin-bottom:8px;">
+    <div class="ac-wrap">
+      <input id="manEpic" placeholder="Type EPIC e.g. SDS1185313" maxlength="12"
+        autocomplete="off"
+        oninput="this.value=this.value.toUpperCase();acSearch(this.value,'epic')"
+        onkeydown="acKey(event,'epic')">
+      <div class="ac-drop" id="acDropEpic"></div>
+    </div>
+    <button class="btn btn-p" onclick="lookupFromInput('epic')">🔍</button>
+  </div>
+
+  <div class="slbl">Search by Part Serial Number</div>
   <div class="man-row">
-    <input id="manEpic" placeholder="Type EPIC e.g. SDS1185313" maxlength="12"
-      oninput="this.value=this.value.toUpperCase()"
-      onkeydown="if(event.key==='Enter')lookupManual()">
-    <button class="btn btn-p" onclick="lookupManual()">🔍</button>
+    <div class="ac-wrap">
+      <input id="manPartNo" placeholder="Type Part Sr. No e.g. 1, 25, 100..."
+        autocomplete="off"
+        oninput="acSearch(this.value,'part')"
+        onkeydown="acKey(event,'part')">
+      <div class="ac-drop" id="acDropPart"></div>
+    </div>
+    <button class="btn btn-p" onclick="lookupFromInput('part')">🔍</button>
   </div>
 
   <div class="result" id="resultCard">
@@ -292,8 +355,11 @@
     </select>
   </div>
   <div class="fb">
-    <input id="fLN"   placeholder="Filter by Last Name / Surname..." oninput="renderList()" />
-    <input id="fSrch" placeholder="Search name or EPIC..." oninput="renderList()" />
+    <input id="fLN"     placeholder="Filter by Last Name / Surname..." oninput="renderList()" />
+    <input id="fSrch"   placeholder="Search name or EPIC..." oninput="renderList()" />
+  </div>
+  <div class="fb">
+    <input id="fPartNo" placeholder="Filter by Part Sr. No..." oninput="renderList()" type="number" min="1" style="max-width:180px;" />
   </div>
   <div class="vcnt" id="vcnt"></div>
   <div class="vlist" id="vlist"><div class="empty">Connect to Google Sheets first.</div></div>
@@ -321,6 +387,7 @@
 // ═══════════ STATE ═══════════
 let voters = [], currentEpic = null, modalEpicVal = null, camStream = null;
 let WEB_APP_URL = '', CLAUDE_KEY = '';
+let cropRawDataUrl = null; // holds full image waiting for crop
 
 // ═══════════ INIT ═══════════
 window.addEventListener('load', () => {
@@ -533,16 +600,18 @@ function calcStats(arr) {
 
 // ═══════════ VOTER LIST ═══════════
 function renderList() {
-  const ps   = document.getElementById('fPS').value;
-  const st   = document.getElementById('fSt').value;
-  const ln   = (document.getElementById('fLN').value   || '').toLowerCase().trim();
-  const srch = (document.getElementById('fSrch').value || '').toLowerCase().trim();
+  const ps     = document.getElementById('fPS').value;
+  const st     = document.getElementById('fSt').value;
+  const ln     = (document.getElementById('fLN').value     || '').toLowerCase().trim();
+  const srch   = (document.getElementById('fSrch').value   || '').toLowerCase().trim();
+  const partNo = (document.getElementById('fPartNo').value || '').trim();
 
   let list = voters;
   if (ps !== 'ALL') list = list.filter(v => v.ps === ps);
   if (st !== 'ALL') list = list.filter(v => (v.status || 'Pending') === st);
   if (ln)           list = list.filter(v => (v.lastName || '').toLowerCase().includes(ln));
   if (srch)         list = list.filter(v => v.name.toLowerCase().includes(srch) || v.epic.toLowerCase().includes(srch));
+  if (partNo)       list = list.filter(v => String(v.partNo) === partNo || String(v.sno) === partNo);
 
   document.getElementById('vcnt').textContent =
     `Showing ${Math.min(list.length, 300)} of ${list.length} matching (${voters.length} total)`;
@@ -592,31 +661,248 @@ function stopCamera() {
   document.getElementById('camBtn').style.display = 'inline-flex';
 }
 
-function captureAndScan() {
+function captureFrame() {
   const vid = document.getElementById('camVid');
   const cvs = document.getElementById('camCvs');
   cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
   cvs.getContext('2d').drawImage(vid, 0, 0);
   const url = cvs.toDataURL('image/jpeg', 0.92);
-  const img = document.getElementById('imgPreview');
-  img.src = url; img.style.display = 'block';
-  vid.style.display = 'none';
   stopCamera();
-  runOCR(url);
+  openCropModal(url);
 }
 
 function handleUpload(e) {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
-  r.onload = ev => {
-    const src = ev.target.result;
-    document.getElementById('imgPreview').src = src;
-    document.getElementById('imgPreview').style.display = 'block';
-    document.getElementById('scanIdle').style.display = 'none';
-    runOCR(src);
-  };
+  r.onload = ev => openCropModal(ev.target.result);
   r.readAsDataURL(f);
 }
+
+// ═══════════ CROP MODAL ═══════════
+let cropState = { dragging: false, resizing: null, startX: 0, startY: 0, box: { x:10, y:10, w:80, h:40 } };
+
+function openCropModal(dataUrl) {
+  cropRawDataUrl = dataUrl;
+  const modal = document.getElementById('cropModal');
+  const img   = document.getElementById('cropImg');
+  img.onload = () => {
+    // Default box: center 70% width, 30% height
+    const iw = img.offsetWidth, ih = img.offsetHeight;
+    cropState.box = { x: iw*0.05, y: ih*0.3, w: iw*0.9, h: ih*0.4 };
+    drawCropBox();
+    initCropEvents();
+  };
+  img.src = dataUrl;
+  modal.classList.add('open');
+}
+
+function drawCropBox() {
+  const b = cropState.box;
+  const box = document.getElementById('cropBox');
+  box.style.left   = b.x + 'px';
+  box.style.top    = b.y + 'px';
+  box.style.width  = b.w + 'px';
+  box.style.height = b.h + 'px';
+}
+
+function initCropEvents() {
+  const img  = document.getElementById('cropImg');
+  const box  = document.getElementById('cropBox');
+  const wrap = document.getElementById('cropWrap');
+
+  // Remove old listeners by cloning
+  const newBox = box.cloneNode(true);
+  box.parentNode.replaceChild(newBox, box);
+
+  function getPos(e) {
+    const r = img.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+
+  function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+  function onDown(e) {
+    e.preventDefault();
+    const p = getPos(e);
+    const b = cropState.box;
+    const iw = img.offsetWidth, ih = img.offsetHeight;
+    const handle = e.target.dataset.h;
+    if (handle) {
+      cropState.resizing = handle;
+    } else {
+      cropState.dragging = true;
+    }
+    cropState.startX = p.x; cropState.startY = p.y;
+    cropState.origBox = { ...b };
+  }
+
+  function onMove(e) {
+    e.preventDefault();
+    if (!cropState.dragging && !cropState.resizing) return;
+    const p = getPos(e);
+    const dx = p.x - cropState.startX, dy = p.y - cropState.startY;
+    const iw = img.offsetWidth, ih = img.offsetHeight;
+    const ob = cropState.origBox;
+    let { x, y, w, h } = ob;
+
+    if (cropState.dragging) {
+      x = clamp(ob.x + dx, 0, iw - w);
+      y = clamp(ob.y + dy, 0, ih - h);
+      cropState.box = { x, y, w, h };
+    } else {
+      const minS = 30;
+      const hd = cropState.resizing;
+      if (hd === 'br') { w = clamp(ob.w + dx, minS, iw - ob.x); h = clamp(ob.h + dy, minS, ih - ob.y); }
+      if (hd === 'bl') { const nw = clamp(ob.w - dx, minS, ob.x + ob.w); x = ob.x + ob.w - nw; w = nw; h = clamp(ob.h + dy, minS, ih - ob.y); }
+      if (hd === 'tr') { w = clamp(ob.w + dx, minS, iw - ob.x); const nh = clamp(ob.h - dy, minS, ob.y + ob.h); y = ob.y + ob.h - nh; h = nh; }
+      if (hd === 'tl') { const nw = clamp(ob.w - dx, minS, ob.x + ob.w); x = ob.x + ob.w - nw; w = nw; const nh = clamp(ob.h - dy, minS, ob.y + ob.h); y = ob.y + ob.h - nh; h = nh; }
+      cropState.box = { x, y, w, h };
+    }
+    drawCropBox();
+  }
+
+  function onUp() { cropState.dragging = false; cropState.resizing = null; }
+
+  newBox.addEventListener('mousedown',  onDown); newBox.addEventListener('touchstart', onDown, { passive: false });
+  document.addEventListener('mousemove', onMove); document.addEventListener('touchmove',  onMove, { passive: false });
+  document.addEventListener('mouseup',   onUp);  document.addEventListener('touchend',   onUp);
+}
+
+function confirmCrop() {
+  const img = document.getElementById('cropImg');
+  const b   = cropState.box;
+  // Scale from display size to natural image size
+  const scaleX = img.naturalWidth  / img.offsetWidth;
+  const scaleY = img.naturalHeight / img.offsetHeight;
+  const cvs = document.createElement('canvas');
+  cvs.width  = b.w * scaleX;
+  cvs.height = b.h * scaleY;
+  const ctx = cvs.getContext('2d');
+  const src = new Image();
+  src.onload = () => {
+    ctx.drawImage(src, b.x*scaleX, b.y*scaleY, b.w*scaleX, b.h*scaleY, 0, 0, cvs.width, cvs.height);
+    const cropped = cvs.toDataURL('image/jpeg', 0.95);
+    showCroppedPreview(cropped);
+    closeCropModal();
+    runOCR(cropped);
+  };
+  src.src = cropRawDataUrl;
+}
+
+function skipCrop() {
+  const url = cropRawDataUrl;
+  showCroppedPreview(url);
+  closeCropModal();
+  runOCR(url);
+}
+
+function showCroppedPreview(url) {
+  const img = document.getElementById('imgPreview');
+  img.src = url; img.style.display = 'block';
+  document.getElementById('scanIdle').style.display = 'none';
+}
+
+function closeCropModal() {
+  document.getElementById('cropModal').classList.remove('open');
+}
+
+// ═══════════ AUTOCOMPLETE ═══════════
+let acSelectedIdx = { epic: -1, part: -1 };
+
+function acSearch(val, type) {
+  const dropId = type === 'epic' ? 'acDropEpic' : 'acDropPart';
+  const drop = document.getElementById(dropId);
+  acSelectedIdx[type] = -1;
+  val = val.trim();
+  if (!val || !voters.length) { drop.classList.remove('open'); return; }
+
+  let matches = [];
+  if (type === 'epic') {
+    const q = val.toUpperCase();
+    matches = voters.filter(v => v.epic.startsWith(q) || v.epic.includes(q)).slice(0, 8);
+  } else {
+    matches = voters.filter(v => String(v.partNo) === val || String(v.sno) === val).slice(0, 8);
+    if (!matches.length) {
+      // fuzzy: starts with
+      matches = voters.filter(v => String(v.partNo).startsWith(val) || String(v.sno).startsWith(val)).slice(0, 8);
+    }
+  }
+
+  if (!matches.length) { drop.classList.remove('open'); return; }
+
+  drop.innerHTML = matches.map((v, i) => {
+    const s = v.status || 'Pending';
+    const hi = type === 'epic'
+      ? v.epic.replace(val.toUpperCase(), `<span class="ac-match">${val.toUpperCase()}</span>`)
+      : v.epic;
+    return `<div class="ac-item" data-epic="${v.epic}" onclick="acSelect('${v.epic}','${type}')">
+      <div class="ac-name">${v.name} <span class="pill pill-${s}" style="font-size:8px;">${s}</span></div>
+      <div class="ac-sub">${hi} · Part No: ${v.partNo} · S.No: ${v.sno} · ${v.ps.replace('PS','PS ')}</div>
+    </div>`;
+  }).join('');
+  drop.classList.add('open');
+}
+
+function acSelect(epic, type) {
+  const drop = document.getElementById(type === 'epic' ? 'acDropEpic' : 'acDropPart');
+  drop.classList.remove('open');
+  if (type === 'epic') document.getElementById('manEpic').value = epic;
+  else document.getElementById('manPartNo').value = '';
+  lookupEpic(epic);
+}
+
+function acKey(e, type) {
+  const dropId = type === 'epic' ? 'acDropEpic' : 'acDropPart';
+  const drop = document.getElementById(dropId);
+  const items = drop.querySelectorAll('.ac-item');
+  if (!drop.classList.contains('open')) {
+    if (e.key === 'Enter') lookupFromInput(type);
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acSelectedIdx[type] = Math.min(acSelectedIdx[type] + 1, items.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acSelectedIdx[type] = Math.max(acSelectedIdx[type] - 1, -1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acSelectedIdx[type] >= 0) {
+      const epic = items[acSelectedIdx[type]].dataset.epic;
+      acSelect(epic, type);
+    } else {
+      lookupFromInput(type);
+      drop.classList.remove('open');
+    }
+    return;
+  } else if (e.key === 'Escape') {
+    drop.classList.remove('open'); return;
+  }
+  items.forEach((el, i) => el.classList.toggle('sel', i === acSelectedIdx[type]));
+}
+
+function lookupFromInput(type) {
+  if (type === 'epic') {
+    const v = document.getElementById('manEpic').value.trim().toUpperCase();
+    if (v) lookupEpic(v);
+  } else {
+    const val = document.getElementById('manPartNo').value.trim();
+    if (!val) return;
+    const match = voters.find(v => String(v.partNo) === val || String(v.sno) === val);
+    if (match) { lookupEpic(match.epic); }
+    else { toast('Part No ' + val + ' not found', 'err'); }
+  }
+  document.getElementById('acDropEpic').classList.remove('open');
+  document.getElementById('acDropPart').classList.remove('open');
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ac-wrap')) {
+    document.querySelectorAll('.ac-drop').forEach(d => d.classList.remove('open'));
+  }
+});
 
 // ═══════════ OCR ═══════════
 async function runOCR(dataUrl) {
@@ -700,10 +986,6 @@ function setLog(msg) {
 }
 
 // ═══════════ LOOKUP ═══════════
-function lookupManual() {
-  const v = document.getElementById('manEpic').value.trim().toUpperCase();
-  if (v) lookupEpic(v);
-}
 
 function lookupEpic(epic) {
   epic = epic.trim().toUpperCase();
