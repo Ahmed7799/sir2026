@@ -186,6 +186,10 @@
   .sb-m:active{background:var(--accent);color:#fff;}
   .sb-a{border-color:var(--red);color:var(--red);}
   .sb-a:active{background:var(--red);color:#fff;}
+  .sb-p{border-color:var(--yellow);color:var(--yellow);}
+  .sb-p:active{background:var(--yellow);color:#fff;}
+  .sb-nl{border-color:#0891b2;color:#0891b2;}
+  .sb-nl:active{background:#0891b2;color:#fff;}
 
   /* ── SEARCH FIELDS ── */
   .man-row{display:flex;gap:8px;margin-bottom:12px;}
@@ -211,18 +215,6 @@
 
   /* ── VOTER LIST ITEMS ── */
   .vlist{display:flex;flex-direction:column;gap:8px;}
-  .vi{
-    background:var(--surf);border:1px solid var(--border);border-radius:12px;
-    padding:14px;display:flex;align-items:center;gap:12px;
-    box-shadow:0 1px 3px rgba(0,0,0,.04);
-    transition:border-color .15s;
-  }
-  .vi:active{border-color:var(--accent);background:#f0f6ff;}
-  .vsno{font-size:13px;color:var(--sub);min-width:30px;font-weight:800;}
-  .vinfo{flex:1;min-width:0;}
-  .vnm{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
-  .vepc{font-size:12px;color:var(--sub2);font-family:monospace;letter-spacing:.8px;margin-top:3px;}
-  .vps{font-size:12px;color:var(--sub);margin-top:2px;}
   .pill{font-size:10px;font-weight:800;padding:4px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0;}
   .pill-Pending{background:rgba(217,119,6,.12);color:var(--yellow);}
   .pill-Completed{background:rgba(5,150,105,.12);color:var(--green);}
@@ -230,6 +222,7 @@
   .pill-Duplicate{background:rgba(124,58,237,.12);color:var(--purple);}
   .pill-Migrated{background:rgba(37,99,235,.12);color:var(--accent);}
   .pill-Absent{background:rgba(220,38,38,.12);color:var(--red);}
+  .pill-No-Linkage{background:rgba(8,145,178,.12);color:#0891b2;}
   /* Large edit button — easy to tap */
   .vedit{
     font-size:18px;min-width:44px;min-height:44px;display:flex;align-items:center;
@@ -237,6 +230,19 @@
     -webkit-user-select:none;user-select:none;
   }
   .vedit:active{background:#eff6ff;color:var(--accent);}
+  /* Voter list — tighter, no wasted space */
+  .vi{
+    background:var(--surf);border:1px solid var(--border);border-radius:12px;
+    padding:12px 12px;display:flex;align-items:center;gap:10px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .vi:active{border-color:var(--accent);background:#f0f6ff;}
+  .vsno{font-size:12px;color:var(--sub);min-width:34px;font-weight:800;
+    background:var(--card);border-radius:6px;padding:3px 5px;text-align:center;flex-shrink:0;}
+  .vinfo{flex:1;min-width:0;}
+  .vnm{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+  .vepc{font-size:11px;color:var(--sub2);font-family:monospace;letter-spacing:.8px;margin-top:2px;}
+  .vps{font-size:11px;color:var(--sub);margin-top:1px;}
 
   .empty{text-align:center;padding:48px 20px;color:var(--sub);font-size:15px;}
   .spinner{width:20px;height:20px;border:2.5px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;}
@@ -461,6 +467,8 @@
       <button class="stbtn sb-du" onclick="submitStatus('Duplicate')">🔁 Duplicate</button>
       <button class="stbtn sb-m"  onclick="submitStatus('Migrated')">🚌 Migrated</button>
       <button class="stbtn sb-a"  onclick="submitStatus('Absent')">🚷 Absent</button>
+      <button class="stbtn sb-p"  onclick="submitStatus('Pending')">⏳ Pending</button>
+      <button class="stbtn sb-nl" onclick="submitStatus('No Linkage')">🔗 No Linkage</button>
     </div>
   </div>
 </div>
@@ -480,6 +488,7 @@
       <option value="Duplicate">Duplicate</option>
       <option value="Migrated">Migrated</option>
       <option value="Absent">Absent</option>
+      <option value="No Linkage">No Linkage</option>
     </select>
   </div>
   <div class="fb">
@@ -505,6 +514,8 @@
       <button class="stbtn sb-du" onclick="modalUpdate('Duplicate')">🔁 Duplicate</button>
       <button class="stbtn sb-m"  onclick="modalUpdate('Migrated')">🚌 Migrated</button>
       <button class="stbtn sb-a"  onclick="modalUpdate('Absent')">🚷 Absent</button>
+      <button class="stbtn sb-p"  onclick="modalUpdate('Pending')">⏳ Pending</button>
+      <button class="stbtn sb-nl" onclick="modalUpdate('No Linkage')">🔗 No Linkage</button>
     </div>
     <button class="btn btn-o btn-w" style="margin-top:10px;" onclick="document.getElementById('editModal').classList.remove('open')">Cancel</button>
   </div>
@@ -698,6 +709,7 @@ function renderDash() {
       <div class="sc sc-dup"><div class="sn">${a.Duplicate}</div><div class="sl">Duplicate</div></div>
       <div class="sc sc-migr"><div class="sn">${a.Migrated}</div><div class="sl">Migrated</div></div>
       <div class="sc sc-abs"><div class="sn">${a.Absent}</div><div class="sl">Absent</div></div>
+      <div class="sc" style="--c:#0891b2" ><div class="sn" style="color:#0891b2">${a.NoLinkage}</div><div class="sl">No Linkage</div></div>
     </div>
     <div class="pb-wrap"><div class="pb-fill" style="width:${pct}%"></div></div>
     <div class="pb-lbl">${pct}% completed — ${a.Completed} of ${a.total} forms processed</div>
@@ -718,6 +730,7 @@ function renderDash() {
             ${s.Duplicate ? `<span class="chip ch-du">🔁 ${s.Duplicate}</span>` : ''}
             ${s.Migrated  ? `<span class="chip ch-m">🚌 ${s.Migrated}</span>` : ''}
             ${s.Absent    ? `<span class="chip ch-a">🚷 ${s.Absent}</span>` : ''}
+            ${s.NoLinkage ? `<span class="chip" style="background:rgba(8,145,178,.1);color:#0891b2">🔗 ${s.NoLinkage}</span>` : ''}
           </div>
           <div class="pb-wrap" style="margin-top:8px;">
             <div class="pb-fill" style="width:${p}%"></div>
@@ -765,13 +778,14 @@ function renderDash() {
 
 function calcStats(arr) {
   return {
-    total:     arr.length,
-    Completed: arr.filter(v => v.status === 'Completed').length,
-    Pending:   arr.filter(v => !v.status || v.status === 'Pending').length,
-    Died:      arr.filter(v => v.status === 'Died').length,
-    Duplicate: arr.filter(v => v.status === 'Duplicate').length,
-    Migrated:  arr.filter(v => v.status === 'Migrated').length,
-    Absent:    arr.filter(v => v.status === 'Absent').length,
+    total:      arr.length,
+    Completed:  arr.filter(v => v.status === 'Completed').length,
+    Pending:    arr.filter(v => !v.status || v.status === 'Pending').length,
+    Died:       arr.filter(v => v.status === 'Died').length,
+    Duplicate:  arr.filter(v => v.status === 'Duplicate').length,
+    Migrated:   arr.filter(v => v.status === 'Migrated').length,
+    Absent:     arr.filter(v => v.status === 'Absent').length,
+    NoLinkage:  arr.filter(v => v.status === 'No Linkage').length,
   };
 }
 
@@ -799,14 +813,15 @@ function renderList() {
   }
   document.getElementById('vlist').innerHTML = list.slice(0, 300).map(v => {
     const s = v.status || 'Pending';
+    const pillClass = 'pill-' + s.replace(/\s+/g, '-');
     return `<div class="vi">
-      <div class="vsno">${v.sno}</div>
+      <div class="vsno">${v.partNo}</div>
       <div class="vinfo">
         <div class="vnm">${v.name}</div>
         <div class="vepc">${v.epic}</div>
         <div class="vps">${v.ps.replace('PS','PS ')} · ${v.lastName || ''}</div>
       </div>
-      <span class="pill pill-${s}">${s}</span>
+      <span class="pill ${pillClass}">${s}</span>
       <span class="vedit" onclick="openModal('${v.epic}')">✏️</span>
     </div>`;
   }).join('');
